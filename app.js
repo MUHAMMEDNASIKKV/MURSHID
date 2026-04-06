@@ -14,8 +14,8 @@ const SLOT_RULES = {
         "PK JAFAR HUDAWI": 4
     },
     "Course": {
-        "AP MUSTHAFA HUDAWI": 15,
-        "PK JAFAR HUDAWI": 12
+        "AP MUSTHAFA HUDAWI": 21,
+        "PK JAFAR HUDAWI": 6
     }
 };
 

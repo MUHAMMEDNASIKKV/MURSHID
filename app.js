@@ -1,626 +1,410 @@
-// 🌐 Global Variables
-let currentUser = null;
-let currentSheetName = null;
-let selectedDate = null;
-let selectedADNo = null;
+// ============================================
+// THARBIYYA - TEACHER SELECTION PORTAL
+// Frontend JavaScript (app.js)
+// ============================================
 
-// =============================
-// 📊 Google Sheets API Configuration
-// =============================
-class GoogleSheetsAPI {
-    constructor() {
-        // IMPORTANT: Replace this URL with your Google Apps Script Web App URL
-        this.apiUrl = "https://script.google.com/macros/s/AKfycbyzsR21XdEx9X-6nIz6oQqMBrHvNCe4pE78NsNTBIaUwaw-X42_7zDXJ_lqoppAoexTXg/exec";
-        this.cache = new Map();
-        this.cacheTimeout = 60000; // 60 seconds
+// Configuration
+// IMPORTANT: Replace with your actual Google Apps Script Web App URL
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby8vM9lOeZaA6RyHu1q7LSrGKx8Z7CRKl9-_7uSpQFqWKbeA9VG-dbgaEYAAGnYtwnQ/exec";
+
+// Slot limits
+const SLOT_RULES = {
+    "Thesis": {
+        "AP MUSTHAFA HUDAWI": 6,
+        "PK JAFAR HUDAWI": 4
+    },
+    "Course": {
+        "AP MUSTHAFA HUDAWI": 15,
+        "PK JAFAR HUDAWI": 12
     }
+};
 
-    async getSheet(sheetName, useCache = true) {
-        const cacheKey = sheetName;
-        const now = Date.now();
-        
-        if (useCache && this.cache.has(cacheKey)) {
-            const cached = this.cache.get(cacheKey);
-            if (now - cached.timestamp < this.cacheTimeout) {
-                return cached.data;
-            }
-        }
+const TEACHERS = ["AP MUSTHAFA HUDAWI", "PK JAFAR HUDAWI"];
 
-        try {
-            const url = `${this.apiUrl}?sheet=${encodeURIComponent(sheetName)}&t=${now}`;
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: { 'Accept': 'application/json' }
-            });
-            
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            
-            const data = await response.json();
-            
-            if (useCache) {
-                this.cache.set(cacheKey, { data, timestamp: now });
-            }
-            
-            return data;
-        } catch (error) {
-            console.error(`Error fetching ${sheetName}:`, error);
-            return { error: error.message };
-        }
-    }
+// Global state
+let studentsData = [];      // Array of student objects { enrol, name, mode, murshid }
+let currentStudent = null;  // Currently selected student
+let selectedTeacher = null;  // Teacher chosen by user
+let slotStats = null;        // Cached slot statistics
 
-    async addRow(sheetName, rowData) {
-        try {
-            const response = await fetch(this.apiUrl, {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: new URLSearchParams({
-                    sheet: sheetName,
-                    data: JSON.stringify(rowData)
-                })
-            });
-            
-            const result = await response.json();
-            
-            // Clear cache for this sheet
-            this.cache.delete(sheetName);
-            
-            return result;
-        } catch (error) {
-            console.error('Error adding row:', error);
-            return { error: error.message };
-        }
-    }
+// DOM Elements
+const enrolInput = document.getElementById('enrolNo');
+const studentNameField = document.getElementById('studentName');
+const modeField = document.getElementById('modeField');
+const teacherContainer = document.getElementById('teacherContainer');
+const slotInfoDiv = document.getElementById('slotInfo');
+const submitBtn = document.getElementById('submitBtn');
+const alertPopup = document.getElementById('alertPopup');
+const enrolError = document.getElementById('enrolError');
 
-    async ensureSheetExists(sheetName, headers) {
-        try {
-            const response = await fetch(this.apiUrl, {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: new URLSearchParams({
-                    action: "ensureSheet",
-                    sheet: sheetName,
-                    headers: JSON.stringify(headers)
-                })
-            });
-            
-            const result = await response.json();
-            return result;
-        } catch (error) {
-            console.error('Error ensuring sheet exists:', error);
-            return { error: error.message };
-        }
-    }
-
-    clearCache() {
-        this.cache.clear();
-    }
-}
-
-const api = new GoogleSheetsAPI();
-
-// =============================
-// 🔑 Login Functions
-// =============================
-
-// Load AD numbers on page load
-document.addEventListener('DOMContentLoaded', async function() {
-    await loadADNumbers();
-    
-    // Set max date to today
-    const dateInput = document.getElementById('date');
-    const today = new Date().toISOString().split('T')[0];
-    dateInput.max = today;
-    
-    // Add event listeners for select options
-    initializeSelectOptions();
-    
-    // Add login form submit listener
-    document.getElementById('loginForm').addEventListener('submit', login);
-    
-    // Add worship form submit listener
-    document.getElementById('worshipForm').addEventListener('submit', submitWorshipForm);
+// ============================================
+// 🚀 INITIALIZATION
+// ============================================
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadAllStudents();
+    await loadSlotStatistics();
+    setupEventListeners();
 });
 
-async function loadADNumbers() {
-    try {
-        const users = await api.getSheet("user_credentials");
-        const adNoSelect = document.getElementById('adNo');
-        
-        adNoSelect.innerHTML = '<option value="" disabled selected>-- Select AD Number --</option>';
-        
-        if (users && Array.isArray(users) && users.length > 0) {
-            // Sort AD numbers numerically
-            const sortedUsers = users.sort((a, b) => {
-                const numA = parseInt(a['ad:no']) || 0;
-                const numB = parseInt(b['ad:no']) || 0;
-                return numA - numB;
-            });
-            
-            sortedUsers.forEach(user => {
-                const adNo = user['ad:no'] || user.ad_no;
-                const name = user.name || '';
-                if (adNo) {
-                    const option = document.createElement('option');
-                    option.value = adNo;
-                    option.textContent = `${adNo} - ${name}`;
-                    adNoSelect.appendChild(option);
-                }
-            });
-        }
-    } catch (error) {
-        console.error('Error loading AD numbers:', error);
-    }
+function setupEventListeners() {
+    // Debounced enrolment lookup
+    let debounceTimeout;
+    enrolInput.addEventListener('input', (e) => {
+        clearTimeout(debounceTimeout);
+        const val = e.target.value.trim();
+        debounceTimeout = setTimeout(() => {
+            if (val.length > 0) {
+                lookupStudent(val);
+            } else {
+                resetStudentUI();
+            }
+        }, 400);
+    });
+    
+    submitBtn.addEventListener('click', submitSelection);
 }
 
-async function login(event) {
-    event.preventDefault();
-    
-    const adNo = document.getElementById('adNo').value;
-    const date = document.getElementById('date').value;
-    const password = document.getElementById('password').value;
-    
-    // Hide previous error
-    hideLoginError();
-    
-    if (!adNo || !date || !password) {
-        showLoginError('Please fill in all fields');
-        return;
-    }
-    
-    // Show loading state
-    const submitBtn = document.querySelector('#loginForm .submit-btn');
-    const originalText = submitBtn.innerHTML;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In...';
-    submitBtn.disabled = true;
-    
+// ============================================
+// 📥 DATA LOADING FROM GOOGLE SHEETS
+// ============================================
+
+async function loadAllStudents() {
     try {
-        const users = await api.getSheet("user_credentials", false);
+        const response = await fetch(`${APPS_SCRIPT_URL}?action=getAllStudents&t=${Date.now()}`);
+        const data = await response.json();
         
-        if (!users || users.error || !Array.isArray(users)) {
-            showLoginError('Failed to connect to server');
+        if (data.error) {
+            console.error("Error loading students:", data.error);
+            showAlert("Failed to load student data. Please refresh.", true);
             return;
         }
         
-        // Find user with matching AD number and password
-        const user = users.find(u => {
-            const userAdNo = String(u['ad:no'] || u.ad_no || '').trim();
-            const userPassword = String(u.pswd || u.password || '').trim();
-            return userAdNo === String(adNo).trim() && userPassword === String(password).trim();
-        });
-        
-        if (user) {
-            // Login successful
-            currentUser = {
-                adNo: adNo,
-                name: user.name || user.full_name || `User ${adNo}`,
-                rawData: user
-            };
-            
-            selectedDate = date;
-            selectedADNo = adNo;
-            
-            // Format date for sheet name (DD-MM-YYYY)
-            const dateObj = new Date(date);
-            const day = String(dateObj.getDate()).padStart(2, '0');
-            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const year = dateObj.getFullYear();
-            const formattedDate = `${day}-${month}-${year}`;
-            
-            currentSheetName = `${adNo}-${formattedDate}`;
-            
-            // Complete headers array with all 20 worship practices
-            const headers = [
-                // Fardh Prayers (5)
-                'zuhr', 'asr', 'magrib', 'isha', 'subh',
-                // Nafl Prayers (4)
-                'thahajjud', 'zuha', 'swalath_count', 'ravathib',
-                // Quran & Dhikr (4)
-                'qirath_pages', 'surah_mulk', 'surah_vaqia', 'isthigfar_count',
-                // Purification & Hygiene (4)
-                'misvak_count', 'dua_after_vuzu', 'all_time_vuzu', 'haddad',
-                // Sunnah Practices (2)
-                'halal_haircut', 'amama',
-                // Timestamp
-                'submission_date'
-            ];
-            
-            await api.ensureSheetExists(currentSheetName, headers);
-            
-            // Show dashboard
-            document.getElementById('loginPage').classList.add('hidden');
-            document.getElementById('dashboardPage').classList.remove('hidden');
-            
-            // Update UI
-            document.getElementById('userInfo').innerHTML = `<strong>${currentUser.name}</strong> (AD: ${adNo})`;
-            
-            const formattedDateDisplay = dateObj.toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-            document.querySelector('#selectedDateDisplay span').textContent = formattedDateDisplay;
-            
-            // Clear form and reset password field
-            document.getElementById('password').value = '';
-            
-            // Check if already submitted for this date
-            await checkExistingSubmission();
+        if (Array.isArray(data)) {
+            studentsData = data;
+        } else if (data.data && Array.isArray(data.data)) {
+            studentsData = data.data;
         } else {
-            showLoginError('Invalid AD Number or Password');
+            studentsData = [];
         }
+        
+        console.log(`Loaded ${studentsData.length} students`);
+        
     } catch (error) {
-        console.error('Login error:', error);
-        showLoginError('Login failed. Please try again.');
-    } finally {
-        // Restore button state
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
+        console.error("Error fetching students:", error);
+        showAlert("Network error. Please check your connection.", true);
     }
 }
 
-function showLoginError(message) {
-    const errorDiv = document.getElementById('loginError');
-    errorDiv.querySelector('span').textContent = message;
-    errorDiv.classList.remove('hidden');
-}
-
-function hideLoginError() {
-    document.getElementById('loginError').classList.add('hidden');
-}
-
-function logout() {
-    currentUser = null;
-    currentSheetName = null;
-    selectedDate = null;
-    selectedADNo = null;
-    
-    // Reset forms
-    document.getElementById('loginForm').reset();
-    resetWorshipForm();
-    
-    // Hide success/error messages
-    document.getElementById('formSuccess').classList.add('hidden');
-    document.getElementById('formError').classList.add('hidden');
-    
-    // Show login page
-    document.getElementById('dashboardPage').classList.add('hidden');
-    document.getElementById('loginPage').classList.remove('hidden');
-}
-
-// =============================
-// 🕌 Worship Form Functions
-// =============================
-
-function initializeSelectOptions() {
-    // Delegate event listener for select options
-    document.addEventListener('click', function(e) {
-        const option = e.target.closest('.select-option');
-        if (!option) return;
-        
-        const selectGroup = option.closest('.select-group');
-        if (!selectGroup) return;
-        
-        // Get all options in this group
-        const options = selectGroup.querySelectorAll('.select-option');
-        const prayerName = selectGroup.dataset.prayer;
-        
-        // Remove selected class from all options in this group
-        options.forEach(opt => {
-            opt.classList.remove('selected');
-            opt.style.background = '';
-            opt.style.color = '';
-            opt.style.borderColor = '';
-        });
-        
-        // Add selected class to clicked option
-        option.classList.add('selected');
-        
-        // Style for selected state
-        if (option.dataset.value === 'yes') {
-            option.style.background = '#059669';
-            option.style.color = 'white';
-            option.style.borderColor = '#059669';
-        } else {
-            option.style.background = '#dc2626';
-            option.style.color = 'white';
-            option.style.borderColor = '#dc2626';
-        }
-        
-        // Update hidden input value
-        if (prayerName) {
-            const hiddenInput = document.getElementById(prayerName);
-            if (hiddenInput) {
-                hiddenInput.value = option.dataset.value;
-            }
-        }
-    });
-}
-
-function resetWorshipForm() {
-    // Reset all select options
-    document.querySelectorAll('.select-group').forEach(group => {
-        const options = group.querySelectorAll('.select-option');
-        const prayerName = group.dataset.prayer;
-        
-        options.forEach(opt => {
-            opt.classList.remove('selected');
-            opt.style.background = '';
-            opt.style.color = '';
-            opt.style.borderColor = '';
-        });
-        
-        // Clear hidden input
-        if (prayerName) {
-            const hiddenInput = document.getElementById(prayerName);
-            if (hiddenInput) hiddenInput.value = '';
-        }
-    });
-    
-    // Reset all number inputs
-    const numberInputs = ['swalath_count', 'qirath_pages', 'isthigfar_count', 'misvak_count'];
-    numberInputs.forEach(id => {
-        const input = document.getElementById(id);
-        if (input) input.value = '';
-    });
-    
-    // Enable submit button
-    const submitBtn = document.getElementById('submitWorshipBtn');
-    submitBtn.disabled = false;
-    submitBtn.innerHTML = '<i class="fas fa-check-double"></i> Submit Today\'s Worship';
-}
-
-async function checkExistingSubmission() {
+async function loadSlotStatistics() {
     try {
-        const data = await api.getSheet(currentSheetName);
+        const response = await fetch(`${APPS_SCRIPT_URL}?action=getSlotStatistics&t=${Date.now()}`);
+        const data = await response.json();
         
-        if (data && Array.isArray(data) && data.length > 0) {
-            // Sort by submission date to get the latest
-            const sorted = data.sort((a, b) => {
-                const dateA = a.submission_date || '';
-                const dateB = b.submission_date || '';
-                return dateB.localeCompare(dateA);
-            });
-            
-            const latest = sorted[0];
-            
-            // Load Fardh Prayers
-            if (latest.zuhr) {
-                const selectGroup = document.querySelector('[data-prayer="zuhr"]');
-                if (latest.zuhr === 'yes') selectGroup?.querySelector('[data-value="yes"]')?.click();
-                else if (latest.zuhr === 'no') selectGroup?.querySelector('[data-value="no"]')?.click();
-            }
-            
-            if (latest.asr) {
-                const selectGroup = document.querySelector('[data-prayer="asr"]');
-                if (latest.asr === 'yes') selectGroup?.querySelector('[data-value="yes"]')?.click();
-                else if (latest.asr === 'no') selectGroup?.querySelector('[data-value="no"]')?.click();
-            }
-            
-            if (latest.magrib) {
-                const selectGroup = document.querySelector('[data-prayer="magrib"]');
-                if (latest.magrib === 'yes') selectGroup?.querySelector('[data-value="yes"]')?.click();
-                else if (latest.magrib === 'no') selectGroup?.querySelector('[data-value="no"]')?.click();
-            }
-            
-            if (latest.isha) {
-                const selectGroup = document.querySelector('[data-prayer="isha"]');
-                if (latest.isha === 'yes') selectGroup?.querySelector('[data-value="yes"]')?.click();
-                else if (latest.isha === 'no') selectGroup?.querySelector('[data-value="no"]')?.click();
-            }
-            
-            if (latest.subh) {
-                const selectGroup = document.querySelector('[data-prayer="subh"]');
-                if (latest.subh === 'yes') selectGroup?.querySelector('[data-value="yes"]')?.click();
-                else if (latest.subh === 'no') selectGroup?.querySelector('[data-value="no"]')?.click();
-            }
-            
-            // Load Nafl Prayers
-            if (latest.thahajjud) {
-                const selectGroup = document.querySelector('[data-prayer="thahajjud"]');
-                if (latest.thahajjud === 'yes') selectGroup?.querySelector('[data-value="yes"]')?.click();
-                else if (latest.thahajjud === 'no') selectGroup?.querySelector('[data-value="no"]')?.click();
-            }
-            
-            if (latest.zuha) {
-                const selectGroup = document.querySelector('[data-prayer="zuha"]');
-                if (latest.zuha === 'yes') selectGroup?.querySelector('[data-value="yes"]')?.click();
-                else if (latest.zuha === 'no') selectGroup?.querySelector('[data-value="no"]')?.click();
-            }
-            
-            if (latest.swalath_count) {
-                document.getElementById('swalath_count').value = latest.swalath_count;
-            }
-            
-            if (latest.ravathib) {
-                const selectGroup = document.querySelector('[data-prayer="ravathib"]');
-                if (latest.ravathib === 'yes') selectGroup?.querySelector('[data-value="yes"]')?.click();
-                else if (latest.ravathib === 'no') selectGroup?.querySelector('[data-value="no"]')?.click();
-            }
-            
-            // Load Quran & Dhikr
-            if (latest.qirath_pages) {
-                document.getElementById('qirath_pages').value = latest.qirath_pages;
-            }
-            
-            if (latest.surah_mulk) {
-                const selectGroup = document.querySelector('[data-prayer="surah_mulk"]');
-                if (latest.surah_mulk === 'yes') selectGroup?.querySelector('[data-value="yes"]')?.click();
-                else if (latest.surah_mulk === 'no') selectGroup?.querySelector('[data-value="no"]')?.click();
-            }
-            
-            if (latest.surah_vaqia) {
-                const selectGroup = document.querySelector('[data-prayer="surah_vaqia"]');
-                if (latest.surah_vaqia === 'yes') selectGroup?.querySelector('[data-value="yes"]')?.click();
-                else if (latest.surah_vaqia === 'no') selectGroup?.querySelector('[data-value="no"]')?.click();
-            }
-            
-            if (latest.isthigfar_count) {
-                document.getElementById('isthigfar_count').value = latest.isthigfar_count;
-            }
-            
-            // Load Purification & Hygiene
-            if (latest.misvak_count) {
-                document.getElementById('misvak_count').value = latest.misvak_count;
-            }
-            
-            if (latest.dua_after_vuzu) {
-                const selectGroup = document.querySelector('[data-prayer="dua_after_vuzu"]');
-                if (latest.dua_after_vuzu === 'yes') selectGroup?.querySelector('[data-value="yes"]')?.click();
-                else if (latest.dua_after_vuzu === 'no') selectGroup?.querySelector('[data-value="no"]')?.click();
-            }
-            
-            if (latest.all_time_vuzu) {
-                const selectGroup = document.querySelector('[data-prayer="all_time_vuzu"]');
-                if (latest.all_time_vuzu === 'yes') selectGroup?.querySelector('[data-value="yes"]')?.click();
-                else if (latest.all_time_vuzu === 'no') selectGroup?.querySelector('[data-value="no"]')?.click();
-            }
-            
-            if (latest.haddad) {
-                const selectGroup = document.querySelector('[data-prayer="haddad"]');
-                if (latest.haddad === 'yes') selectGroup?.querySelector('[data-value="yes"]')?.click();
-                else if (latest.haddad === 'no') selectGroup?.querySelector('[data-value="no"]')?.click();
-            }
-            
-            // Load Sunnah Practices
-            if (latest.halal_haircut) {
-                const selectGroup = document.querySelector('[data-prayer="halal_haircut"]');
-                if (latest.halal_haircut === 'yes') selectGroup?.querySelector('[data-value="yes"]')?.click();
-                else if (latest.halal_haircut === 'no') selectGroup?.querySelector('[data-value="no"]')?.click();
-            }
-            
-            if (latest.amama) {
-                const selectGroup = document.querySelector('[data-prayer="amama"]');
-                if (latest.amama === 'yes') selectGroup?.querySelector('[data-value="yes"]')?.click();
-                else if (latest.amama === 'no') selectGroup?.querySelector('[data-value="no"]')?.click();
-            }
-            
-            // Show success message
-            showFormSuccess('Your previous submission has been loaded. You can update it below.');
+        if (!data.error) {
+            slotStats = data;
         }
     } catch (error) {
-        console.error('Error checking existing submission:', error);
+        console.error("Error loading slot stats:", error);
     }
 }
 
-async function submitWorshipForm(event) {
-    event.preventDefault();
+// ============================================
+// 🔍 STUDENT LOOKUP
+// ============================================
+
+async function lookupStudent(enrol) {
+    if (!enrol || enrol.trim() === "") {
+        resetStudentUI();
+        return false;
+    }
     
-    // Hide previous messages
-    hideFormMessages();
+    // Refresh data to get latest assignments
+    await loadAllStudents();
+    await loadSlotStatistics();
     
-    // Get all form values
-    // Fardh Prayers
-    const zuhr = document.getElementById('zuhr').value;
-    const asr = document.getElementById('asr').value;
-    const magrib = document.getElementById('magrib').value;
-    const isha = document.getElementById('isha').value;
-    const subh = document.getElementById('subh').value;
+    const found = studentsData.find(s => String(s.enrol).trim() === String(enrol).trim());
     
-    // Nafl Prayers
-    const thahajjud = document.getElementById('thahajjud').value;
-    const zuha = document.getElementById('zuha').value;
-    const swalath_count = document.getElementById('swalath_count').value;
-    const ravathib = document.getElementById('ravathib').value;
+    if (!found) {
+        enrolError.textContent = "❌ Enrolment number not found in registry";
+        enrolError.classList.remove("hidden");
+        resetStudentUI();
+        currentStudent = null;
+        selectedTeacher = null;
+        renderTeacherCards(null);
+        return false;
+    }
     
-    // Quran & Dhikr
-    const qirath_pages = document.getElementById('qirath_pages').value;
-    const surah_mulk = document.getElementById('surah_mulk').value;
-    const surah_vaqia = document.getElementById('surah_vaqia').value;
-    const isthigfar_count = document.getElementById('isthigfar_count').value;
+    enrolError.classList.add("hidden");
+    currentStudent = { ...found };
+    studentNameField.value = currentStudent.name;
+    modeField.value = currentStudent.mode;
     
-    // Purification & Hygiene
-    const misvak_count = document.getElementById('misvak_count').value;
-    const dua_after_vuzu = document.getElementById('dua_after_vuzu').value;
-    const all_time_vuzu = document.getElementById('all_time_vuzu').value;
-    const haddad = document.getElementById('haddad').value;
+    // Check if student already has a teacher assigned
+    if (currentStudent.murshid && currentStudent.murshid.trim() !== "") {
+        selectedTeacher = currentStudent.murshid;
+        renderTeacherCards(currentStudent.mode);
+        showAlert(`ℹ️ You already have a teacher: ${currentStudent.murshid}. Selection cannot be changed.`, false);
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = "0.6";
+        submitBtn.style.cursor = "not-allowed";
+    } else {
+        selectedTeacher = null;
+        renderTeacherCards(currentStudent.mode);
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = "1";
+        submitBtn.style.cursor = "pointer";
+    }
     
-    // Sunnah Practices
-    const halal_haircut = document.getElementById('halal_haircut').value;
-    const amama = document.getElementById('amama').value;
+    return true;
+}
+
+function resetStudentUI() {
+    studentNameField.value = '';
+    modeField.value = '';
+    currentStudent = null;
+    selectedTeacher = null;
+    renderTeacherCards(null);
+    submitBtn.disabled = false;
+    submitBtn.style.opacity = "1";
+    submitBtn.style.cursor = "pointer";
+}
+
+// ============================================
+// 🎨 RENDER TEACHER CARDS
+// ============================================
+
+function getCurrentSlotUsage(mode) {
+    const usage = {
+        "AP MUSTHAFA HUDAWI": 0,
+        "PK JAFAR HUDAWI": 0
+    };
     
-    // Validate all required fields (20 total)
-    if (!zuhr || !asr || !magrib || !isha || !subh ||
-        !thahajjud || !zuha || !swalath_count || !ravathib ||
-        !qirath_pages || !surah_mulk || !surah_vaqia || !isthigfar_count ||
-        !misvak_count || !dua_after_vuzu || !all_time_vuzu || !haddad ||
-        !halal_haircut || !amama) {
-        showFormError('Please fill in all fields');
+    studentsData.forEach(student => {
+        if (student.mode === mode && student.murshid && student.murshid.trim() !== "") {
+            if (usage[student.murshid] !== undefined) {
+                usage[student.murshid]++;
+            }
+        }
+    });
+    
+    return usage;
+}
+
+function isSlotAvailable(teacher, mode) {
+    const usage = getCurrentSlotUsage(mode);
+    const limit = SLOT_RULES[mode]?.[teacher] || 0;
+    const current = usage[teacher] || 0;
+    return current < limit;
+}
+
+function getRemainingSlots(teacher, mode) {
+    const usage = getCurrentSlotUsage(mode);
+    const limit = SLOT_RULES[mode]?.[teacher] || 0;
+    const current = usage[teacher] || 0;
+    return Math.max(0, limit - current);
+}
+
+function renderTeacherCards(mode) {
+    if (!mode) {
+        teacherContainer.innerHTML = `
+            <div class="col-span-2 text-center text-gray-400 py-8">
+                <i class="fas fa-search text-3xl mb-2"></i>
+                <p>Enter your enrolment number to see teacher options</p>
+            </div>
+        `;
+        slotInfoDiv.innerHTML = '';
+        return;
+    }
+    
+    const usage = getCurrentSlotUsage(mode);
+    let cardsHtml = '';
+    
+    TEACHERS.forEach(teacher => {
+        const limit = SLOT_RULES[mode]?.[teacher] || 0;
+        const current = usage[teacher] || 0;
+        const available = current < limit;
+        const remaining = limit - current;
+        const isSelected = (selectedTeacher === teacher);
+        const isAlreadyAssigned = currentStudent?.murshid && currentStudent.murshid.trim() !== "";
+        
+        let disabledClass = '';
+        let clickHandler = '';
+        
+        if (!available || isAlreadyAssigned) {
+            disabledClass = 'opacity-50 cursor-not-allowed border-gray-200 bg-gray-50';
+            clickHandler = '';
+        } else {
+            disabledClass = 'cursor-pointer hover:shadow-md transition-all';
+            clickHandler = `onclick="selectTeacher('${teacher}')"`;
+        }
+        
+        const selectedClass = isSelected ? 'selected border-emerald-700 bg-emerald-50' : '';
+        
+        cardsHtml += `
+            <div class="teacher-card border-2 rounded-xl p-4 ${disabledClass} ${selectedClass}" ${clickHandler} data-teacher="${teacher}">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="font-bold text-gray-800 text-lg">${teacher}</h3>
+                        <p class="text-xs text-gray-500 mt-1">Murshid</p>
+                    </div>
+                    <div class="text-xs font-semibold px-3 py-1 rounded-full ${available ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">
+                        ${available ? `✓ ${remaining} slot${remaining !== 1 ? 's' : ''} left` : '✗ Full'}
+                    </div>
+                </div>
+                <div class="mt-2 text-xs text-gray-500">
+                    ${available ? `Available: ${remaining} / ${limit}` : `No seats left for ${mode} mode`}
+                </div>
+            </div>
+        `;
+    });
+    
+    teacherContainer.innerHTML = cardsHtml;
+    
+    // Update slot info summary
+    const thesisAPRemaining = getRemainingSlots("AP MUSTHAFA HUDAWI", "Thesis");
+    const thesisPKRemaining = getRemainingSlots("PK JAFAR HUDAWI", "Thesis");
+    const courseAPRemaining = getRemainingSlots("AP MUSTHAFA HUDAWI", "Course");
+    const coursePKRemaining = getRemainingSlots("PK JAFAR HUDAWI", "Course");
+    
+    slotInfoDiv.innerHTML = `
+        <div class="flex flex-wrap gap-3 justify-between">
+            <span class="bg-gray-100 px-3 py-1.5 rounded-full text-xs font-medium">
+                <i class="fas fa-university text-emerald-600 mr-1"></i> Thesis: 
+                AP (${thesisAPRemaining}) | PK (${thesisPKRemaining})
+            </span>
+            <span class="bg-gray-100 px-3 py-1.5 rounded-full text-xs font-medium">
+                <i class="fas fa-book-open text-emerald-600 mr-1"></i> Course: 
+                AP (${courseAPRemaining}) | PK (${coursePKRemaining})
+            </span>
+        </div>
+    `;
+}
+
+// Global function for teacher selection (called from onclick)
+window.selectTeacher = function(teacher) {
+    if (!currentStudent) {
+        showAlert("Please enter a valid enrolment number first");
+        return;
+    }
+    
+    if (currentStudent.murshid && currentStudent.murshid.trim() !== "") {
+        showAlert(`You have already selected ${currentStudent.murshid}. Selection cannot be changed.`);
+        return;
+    }
+    
+    if (!isSlotAvailable(teacher, currentStudent.mode)) {
+        showAlert(`No available slots for ${teacher} in ${currentStudent.mode} mode. Slots are full.`);
+        renderTeacherCards(currentStudent.mode);
+        return;
+    }
+    
+    selectedTeacher = teacher;
+    renderTeacherCards(currentStudent.mode);
+    showAlert(`Selected: ${teacher}`, false);
+};
+
+// ============================================
+// 📤 SUBMIT SELECTION
+// ============================================
+
+async function submitSelection() {
+    if (!currentStudent) {
+        showAlert("❌ Please enter a valid enrolment number first.");
+        return;
+    }
+    
+    if (currentStudent.murshid && currentStudent.murshid.trim() !== "") {
+        showAlert(`⚠️ You already selected ${currentStudent.murshid}. Selection cannot be changed.`);
+        return;
+    }
+    
+    if (!selectedTeacher) {
+        showAlert("⚠️ Please select a teacher (Murshid) before submitting.");
+        return;
+    }
+    
+    // Double-check slot availability
+    if (!isSlotAvailable(selectedTeacher, currentStudent.mode)) {
+        showAlert(`❌ No available slots for ${selectedTeacher} in ${currentStudent.mode} mode. Slots are full.`);
+        renderTeacherCards(currentStudent.mode);
         return;
     }
     
     // Show loading state
-    const submitBtn = document.getElementById('submitWorshipBtn');
-    const originalText = submitBtn.innerHTML;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+    const originalBtnHtml = submitBtn.innerHTML;
     submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
     
     try {
-        // Prepare row data with all 20 fields + timestamp
-        const now = new Date();
-        const formattedNow = `${now.toLocaleDateString('en-GB')} ${now.toLocaleTimeString('en-GB')}`;
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: "POST",
+            mode: "cors",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: new URLSearchParams({
+                action: "updateMurshid",
+                enrolNo: currentStudent.enrol,
+                murshid: selectedTeacher,
+                mode: currentStudent.mode
+            })
+        });
         
-        const rowData = [
-            // Fardh Prayers (5)
-            zuhr, asr, magrib, isha, subh,
-            // Nafl Prayers (4)
-            thahajjud, zuha, swalath_count, ravathib,
-            // Quran & Dhikr (4)
-            qirath_pages, surah_mulk, surah_vaqia, isthigfar_count,
-            // Purification & Hygiene (4)
-            misvak_count, dua_after_vuzu, all_time_vuzu, haddad,
-            // Sunnah Practices (2)
-            halal_haircut, amama,
-            // Timestamp (1)
-            formattedNow
-        ];
+        const result = await response.json();
         
-        // Add row to sheet
-        const result = await api.addRow(currentSheetName, rowData);
-        
-        if (result && result.success) {
-            showFormSuccess('Your worship data has been submitted successfully!');
+        if (result.success) {
+            // Update local data
+            currentStudent.murshid = selectedTeacher;
+            const index = studentsData.findIndex(s => s.enrol === currentStudent.enrol);
+            if (index !== -1) {
+                studentsData[index].murshid = selectedTeacher;
+            }
             
-            // Reload the form with new data
-            await checkExistingSubmission();
+            showAlert(`✅ Success! You have selected ${selectedTeacher} as your Murshid.`, false);
+            
+            // Refresh and disable further changes
+            await loadSlotStatistics();
+            renderTeacherCards(currentStudent.mode);
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = "0.6";
+            submitBtn.style.cursor = "not-allowed";
+            
         } else {
-            throw new Error(result?.error || 'Failed to submit data');
+            showAlert(`❌ Submission failed: ${result.error || "Unknown error"}`);
+            // Refresh data to show updated slot status
+            await loadAllStudents();
+            renderTeacherCards(currentStudent.mode);
         }
+        
     } catch (error) {
-        console.error('Error submitting form:', error);
-        showFormError('Submission failed. Please try again.');
+        console.error("Submit error:", error);
+        showAlert("Network error: Could not update. Please try again later.");
     } finally {
-        // Restore button state
-        submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHtml;
+        if (currentStudent?.murshid) {
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = "0.6";
+        }
     }
 }
 
-function showFormSuccess(message) {
-    const successDiv = document.getElementById('formSuccess');
-    successDiv.querySelector('span').textContent = message;
-    successDiv.classList.remove('hidden');
-    
-    // Auto hide after 5 seconds
+// ============================================
+// 🔔 UI HELPERS
+// ============================================
+
+function showAlert(message, isError = true) {
+    alertPopup.textContent = message;
+    alertPopup.style.background = isError ? "#dc2626" : "#059669";
+    alertPopup.classList.add('show');
     setTimeout(() => {
-        successDiv.classList.add('hidden');
-    }, 5000);
+        alertPopup.classList.remove('show');
+    }, 3000);
 }
 
-function showFormError(message) {
-    const errorDiv = document.getElementById('formError');
-    errorDiv.querySelector('span').textContent = message;
-    errorDiv.classList.remove('hidden');
-}
-
-function hideFormMessages() {
-    document.getElementById('formSuccess').classList.add('hidden');
-    document.getElementById('formError').classList.add('hidden');
-}
-
-// =============================
-// 🔒 Security & Optimization
-// =============================
+// ============================================
+// 🔒 SECURITY (Optional)
+// ============================================
 
 // Disable right-click
 document.addEventListener("contextmenu", function(e) {
@@ -631,11 +415,9 @@ document.addEventListener("contextmenu", function(e) {
 document.addEventListener("keydown", function(e) {
     if (e.key === "F12" || 
         (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "C")) ||
-        (e.ctrlKey && (e.key === "u" || e.key === "U" || e.key === "s" || e.key === "S"))) {
+        (e.ctrlKey && (e.key === "u" || e.key === "U"))) {
         e.preventDefault();
     }
 });
 
-// Console welcome message
-console.log('%c🌙 Tharbiyya - Complete Daily Worship Tracker 🌙', 'color: #059669; font-size: 16px; font-weight: bold;');
-console.log('%c20 Worship Practices Loaded Successfully', 'color: #1f2937; font-size: 12px;');
+console.log('%c🌙 Tharbiyya - Teacher Selection Portal Loaded 🌙', 'color: #059669; font-size: 16px; font-weight: bold;');

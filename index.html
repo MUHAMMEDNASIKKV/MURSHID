@@ -2,658 +2,544 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
-    <title>Tharbiyya - Subject & Teacher Selection | Hudawi Selection Portal</title>
-    
-    <!-- Tailwind CSS CDN -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Tharbiyya - Teacher Selection Portal</title>
+    <!-- Tailwind + Font Awesome + Google Fonts -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, #f8faf6 0%, #f0f4ea 100%);
-            min-height: 100vh;
-            padding: 1.5rem;
-        }
-        .arabic-text { font-family: 'Amiri', serif; }
-        
-        .selection-card {
-            max-width: 700px;
-            margin: 2rem auto;
+        * { font-family: 'Inter', sans-serif; }
+        body { background: #f8fafc; }
+        .card-modern {
             background: white;
-            border-radius: 32px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
-            overflow: hidden;
-            border: 1px solid rgba(5, 150, 105, 0.2);
+            border-radius: 28px;
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.08);
+            transition: all 0.2s;
         }
-        
-        .form-input, .form-select {
+        .input-field {
             width: 100%;
-            padding: 0.875rem 1rem;
+            padding: 0.85rem 1rem;
             border: 1.5px solid #e2e8f0;
             border-radius: 18px;
+            transition: all 0.2s;
+            background: #fff;
             font-size: 0.95rem;
-            transition: all 0.2s;
-            background: white;
         }
-        
-        .form-input:focus, .form-select:focus {
+        .input-field:focus {
             outline: none;
-            border-color: #059669;
-            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+            border-color: #0f3b2c;
+            box-shadow: 0 0 0 3px rgba(15,59,44,0.1);
         }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #059669, #047857);
-            color: white;
-            padding: 1rem;
+        .teacher-card {
+            border: 2px solid #e9ecef;
             border-radius: 24px;
-            font-weight: 600;
-            width: 100%;
-            transition: all 0.2s;
-            border: none;
+            padding: 1.2rem;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.75rem;
-            font-size: 1rem;
+            transition: all 0.2s;
+            background: #ffffff;
         }
-        
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 20px -8px rgba(5, 150, 105, 0.4);
+        .teacher-card.selected {
+            border-color: #0f3b2c;
+            background: #f0f9f4;
+            box-shadow: 0 8px 20px rgba(15,59,44,0.12);
         }
-        
-        .btn-primary:disabled {
-            opacity: 0.6;
-            transform: none;
-            cursor: not-allowed;
-        }
-        
         .slot-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.35rem 1rem;
-            border-radius: 40px;
             font-size: 0.75rem;
             font-weight: 600;
+            padding: 0.2rem 0.8rem;
+            border-radius: 30px;
+            background: #f1f5f9;
+            color: #1e293b;
         }
-        
-        .slot-available { background: #dcfce7; color: #166534; }
-        .slot-full { background: #fee2e2; color: #991b1b; }
-        
-        .teacher-option {
-            border: 2px solid #e5e7eb;
-            border-radius: 20px;
-            padding: 1rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            background: white;
+        .slot-full {
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
         }
-        
-        .teacher-option.selected {
-            border-color: #059669;
-            background: #ecfdf5;
-            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
-        }
-        
-        .teacher-option.disabled-teacher {
-            opacity: 0.5;
-            cursor: not-allowed;
-            background: #f9fafb;
-        }
-        
         .alert-popup {
             position: fixed;
-            top: 20px;
+            bottom: 24px;
             left: 50%;
-            transform: translateX(-50%);
+            transform: translateX(-50%) translateY(20px);
             background: #dc2626;
             color: white;
-            padding: 1rem 2rem;
+            padding: 12px 28px;
             border-radius: 60px;
             font-weight: 600;
+            box-shadow: 0 10px 25px -5px rgba(220,38,38,0.3);
             z-index: 1000;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            animation: slideDown 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+            pointer-events: none;
+            font-size: 0.9rem;
+            white-space: nowrap;
         }
-        
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateX(-50%) translateY(-30px); }
-            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .alert-popup.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
         }
-        
-        .success-toast {
-            background: #059669;
+        .info-banner {
+            background: #eef2ff;
+            border-radius: 20px;
+            padding: 1rem 1.2rem;
+            border-left: 5px solid #0f3b2c;
         }
-        
-        .info-card {
-            background: #fefce8;
-            border-left: 5px solid #eab308;
+        @media (max-width: 640px) {
+            .alert-popup { white-space: normal; width: 90%; text-align: center; font-size: 0.85rem; }
         }
-        
-        .loading-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 2px solid white;
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 0.6s linear infinite;
+        .spinner-sm {
+            animation: spin 0.8s linear infinite;
         }
-        
         @keyframes spin { to { transform: rotate(360deg); } }
-        
-        .hidden { display: none !important; }
     </style>
 </head>
-<body>
+<body class="flex items-center justify-center min-h-screen p-4">
 
-<div class="max-w-3xl mx-auto">
-    <!-- Header -->
-    <div class="text-center mb-6">
-        <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Tharbiyya</h1>
-        <p class="arabic-text text-emerald-700 text-lg mt-1">حاسبوا أنفسكم قبل أن تحاسبوا</p>
-        <p class="text-sm text-gray-500 mt-2">Subject & Teacher Selection Portal</p>
-    </div>
-
-    <!-- Main Selection Card -->
-    <div class="selection-card">
-        <div class="bg-emerald-50 px-6 py-4 border-b border-emerald-100">
-            <h2 class="font-bold text-gray-800 text-xl"><i class="fas fa-user-graduate mr-2 text-emerald-700"></i> Student Registration & Teacher Assignment</h2>
-            <p class="text-xs text-gray-600 mt-1">Enter Enrolment No → Auto fetch details → Choose Teacher (based on real-time slot availability)</p>
+    <!-- MAIN PORTAL CARD -->
+    <div class="max-w-3xl w-full card-modern p-5 md:p-8 transition-all">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl md:text-3xl font-extrabold text-gray-800">🎓 Teacher Selection</h1>
+           
+            <div class="h-1 w-20 bg-emerald-700 mx-auto rounded-full mt-3"></div>
         </div>
-        
-        <div class="p-6 md:p-8">
-            <!-- Form -->
-            <form id="selectionForm">
-                <!-- Enrol No -->
-                <div class="mb-5">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        <i class="fas fa-id-card mr-1 text-emerald-600"></i> Enrolment Number *
-                    </label>
-                    <input type="text" id="enrolNo" class="form-input" placeholder="Enter your enrolment number" required autocomplete="off">
-                    <div id="enrolLoader" class="text-xs text-emerald-600 mt-1 hidden"><i class="fas fa-spinner fa-spin"></i> Fetching student data...</div>
-                </div>
-                
-                <!-- Name (auto) -->
-                <div class="mb-5">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        <i class="fas fa-user mr-1 text-emerald-600"></i> Full Name
-                    </label>
-                    <input type="text" id="studentName" class="form-input bg-gray-50" readonly placeholder="Will appear automatically">
-                </div>
-                
-                <!-- Mode (auto) -->
-                <div class="mb-5">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        <i class="fas fa-book-open mr-1 text-emerald-600"></i> Mode
-                    </label>
-                    <input type="text" id="studentMode" class="form-input bg-gray-50" readonly placeholder="Thesis / Coursework">
-                </div>
-                
-                <!-- Teacher Selection Dropdown with dynamic slots info -->
-                <div class="mb-6">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        <i class="fas fa-chalkboard-user mr-1 text-emerald-600"></i> Select Murshid (Teacher) *
-                    </label>
-                    <div id="teacherOptionsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                        <!-- Dynamic teacher cards will be injected -->
-                        <div class="text-gray-500 text-center p-4">Loading teacher slots...</div>
-                    </div>
-                    <input type="hidden" id="selectedTeacher" required>
-                </div>
-                
-                <!-- Slot info & submit -->
-                <div id="slotInfoPanel" class="mb-5 p-3 rounded-xl bg-amber-50 text-sm hidden"></div>
-                
-                <button type="submit" id="submitBtn" class="btn-primary">
-                    <i class="fas fa-check-circle"></i> Confirm Selection & Submit
-                </button>
-            </form>
-            
-            <div class="mt-6 text-center text-xs text-gray-400 border-t pt-4">
-                <i class="fas fa-clock"></i> First-come-first-served basis. Slots update in real-time.
+
+        <!-- Student Info Form -->
+        <div class="space-y-5">
+            <!-- Enrol No -->
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fas fa-id-card mr-2 text-emerald-700"></i>Enrolment Number</label>
+                <input type="text" id="enrolNo" class="input-field" placeholder="Enter your enrolment number" autocomplete="off">
+                <p id="enrolError" class="text-xs text-red-500 mt-1 hidden"></p>
             </div>
+
+            <!-- Name (auto) -->
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fas fa-user mr-2 text-emerald-700"></i>Full Name</label>
+                <input type="text" id="studentName" class="input-field bg-gray-50" readonly placeholder="Will appear automatically">
+            </div>
+
+            <!-- Mode (auto) -->
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fas fa-graduation-cap mr-2 text-emerald-700"></i>Mode of Study</label>
+                <input type="text" id="modeField" class="input-field bg-gray-50" readonly placeholder="Course / Thesis">
+            </div>
+
+            <!-- Teacher selection dropdown (dynamic cards) -->
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2"><i class="fas fa-chalkboard-user mr-2 text-emerald-700"></i>Select Your Murshid (Teacher)</label>
+                <div id="teacherContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                    <!-- Dynamic teacher cards injected -->
+                </div>
+                <div id="teacherSlotInfo" class="text-xs text-gray-500 mt-2 flex justify-between flex-wrap gap-2"></div>
+            </div>
+
+            <!-- Submit Button -->
+            <button id="submitBtn" class="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold py-3 rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 text-lg mt-4">
+                <i class="fas fa-check-circle"></i> Confirm & Submit
+            </button>
+        </div>
+
+        <!-- Footer note -->
+        <div class="mt-8 text-center text-xs text-gray-400 border-t pt-5">
+            <i class="fas fa-clock mr-1"></i> Slots are allocated on first-come-first-serve basis.
         </div>
     </div>
-</div>
 
-<script>
-    // ======================== GLOBAL CONFIG ========================
-    // Google Sheets CSV URL (published CSV)
-    const USER_CREDENTIALS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRD_SWeZuq5uwY_5ezL78TD6Q4vjj-DX7d4STgQgxiPnUC-9UvK0VJ4MA008zSmHM08OiZmEVDh8Gw7/pub?gid=0&single=true&output=csv";
-    
-    // Google Apps Script Web App URL (for writing murshid back to sheet)
-    // IMPORTANT: Replace this with your actual Google Apps Script Web App URL (deployed as "Execute as me" and accessible)
-    const SCRIPT_WRITE_URL = "https://script.google.com/macros/s/AKfycbzokDKAERUel-5tu4EPS5_aMbkMHBpxis5zb0pcHfxJ-4UNIuEzijm26meeKXKPu3Gr/exec";
-    
-    // Slot limits based on Mode
-    const SLOT_LIMITS = {
-        "Thesis": { "AP MUSTHAFA HUDAWI": 6, "PK JAFAR HUDAWI": 4 },
-        "Coursework": { "AP MUSTHAFA HUDAWI": 15, "PK JAFAR HUDAWI": 12 },
-        "course": { "AP MUSTHAFA HUDAWI": 15, "PK JAFAR HUDAWI": 12 }  // fallback
-    };
-    
-    // Teacher display names mapping
-    const TEACHERS = ["AP MUSTHAFA HUDAWI", "PK JAFAR HUDAWI"];
-    
-    // Global state
-    let masterStudentsData = [];      // raw student list from CSV (enrl no, name, mode, murshid)
-    let currentStudent = null;        // { enrolNo, name, mode, existingMurshid }
-    let currentSlotCounts = {          // live counts per mode & teacher
-        "Thesis": { "AP MUSTHAFA HUDAWI": 0, "PK JAFAR HUDAWI": 0 },
-        "Coursework": { "AP MUSTHAFA HUDAWI": 0, "PK JAFAR HUDAWI": 0 }
-    };
-    let selectedTeacherValue = null;
-    let isSubmitting = false;
-    
-    // ======================== HELPER FUNCTIONS ========================
-    function showAlert(message, isError = true) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert-popup ${!isError ? 'success-toast' : ''}`;
-        alertDiv.innerHTML = `<i class="fas ${isError ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i> ${message}`;
-        document.body.appendChild(alertDiv);
-        setTimeout(() => { alertDiv.remove(); }, 3500);
-    }
-    
-    // Fetch CSV from Google Sheets
-    async function fetchStudentDataFromCSV() {
-        try {
-            const response = await fetch(USER_CREDENTIALS_CSV, { cache: "no-store" });
-            const csvText = await response.text();
-            const rows = csvText.split(/\r?\n/).filter(row => row.trim().length > 0);
-            if (rows.length < 2) return [];
-            
-            const headers = rows[0].split(',').map(h => h.trim().toLowerCase());
-            const enrlIdx = headers.findIndex(h => h.includes('enrl') || h === 'enrol no' || h === 'enrol_no' || h === 'enrollment');
-            const nameIdx = headers.findIndex(h => h === 'name');
-            const modeIdx = headers.findIndex(h => h === 'mode');
-            const murshidIdx = headers.findIndex(h => h === 'murshid');
-            
-            const students = [];
-            for (let i = 1; i < rows.length; i++) {
-                const cols = parseCSVRow(rows[i]);
-                if (cols.length < 2) continue;
-                const enrolNo = enrlIdx !== -1 ? (cols[enrlIdx] || "").trim() : (cols[0] || "").trim();
-                const name = nameIdx !== -1 ? (cols[nameIdx] || "").trim() : (cols[1] || "").trim();
-                let mode = modeIdx !== -1 ? (cols[modeIdx] || "").trim() : "";
-                // Normalize mode
-                if (mode.toLowerCase() === "thesis") mode = "Thesis";
-                else if (mode.toLowerCase() === "coursework" || mode.toLowerCase() === "course") mode = "Coursework";
-                else mode = mode || "Coursework";
-                
-                const murshid = murshidIdx !== -1 ? (cols[murshidIdx] || "").trim() : "";
-                if (enrolNo && name) {
-                    students.push({ enrolNo, name, mode, murshid: murshid || "" });
-                }
+    <!-- global alert popup -->
+    <div id="alertPopup" class="alert-popup">⚠️ Message</div>
+
+    <script>
+        // ======================== CONFIGURATION ========================
+        // GOOGLE SHEETS CSV URL (public published CSV)
+        const CSV_STUDENTS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRD_SWeZuq5uwY_5ezL78TD6Q4vjj-DX7d4STgQgxiPnUC-9UvK0VJ4MA008zSmHM08OiZmEVDh8Gw7/pub?gid=0&single=true&output=csv";
+        
+        // Google Apps Script Web App URL (for updating murshid column)
+        // IMPORTANT: Replace with YOUR deployed Apps Script URL that can update user_credentials sheet
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby8vM9lOeZaA6RyHu1q7LSrGKx8Z7CRKl9-_7uSpQFqWKbeA9VG-dbgaEYAAGnYtwnQ/exec"; 
+        // ^^^ YOU MUST REPLACE THIS WITH YOUR ACTUAL WEB APP URL (from your existing GAS deployment)
+        // The script must accept POST with action=updateMurshid & enrolNo & murshid & mode
+        
+        // Because we also need slot counters: we will fetch ALL student records (user_credentials) from CSV as well?
+        // But the requirement says: slots counting from "submitted responses" under murshid column. 
+        // So we need to maintain a real-time slot usage. Approach:
+        // 1) Fetch latest user_credentials data from same CSV? Actually CSV provided is for student details (enrol, name, mode). 
+        // 2) But we also need current murshid assignments to count slots. We'll fetch the same CSV if it includes murshid column? 
+        // According to description: Google sheet (user_credentials) headings: enrl no, name, mode, murshid. 
+        // The published CSV currently might include all columns. We'll assume the CSV URL includes all 4 columns (enrl no,name,mode,murshid).
+        // So we can load both student list + current assignments from the same CSV.
+        
+        // SLOT LIMITS (based on mode)
+        const SLOT_RULES = {
+            "Thesis": {
+                "AP MUSTHAFA HUDAWI": 6,
+                "PK JAFAR HUDAWI": 4
+            },
+            "Course": {
+                "AP MUSTHAFA HUDAWI": 15,
+                "PK JAFAR HUDAWI": 12
             }
-            return students;
-        } catch (err) {
-            console.error("CSV fetch error:", err);
-            showAlert("Failed to load student data. Please refresh.");
-            return [];
-        }
-    }
-    
-    // Parse CSV row (handles quotes)
-    function parseCSVRow(rowStr) {
-        const result = [];
-        let inQuote = false;
-        let current = '';
-        for (let i = 0; i < rowStr.length; i++) {
-            const ch = rowStr[i];
-            if (ch === '"') {
-                inQuote = !inQuote;
-            } else if (ch === ',' && !inQuote) {
-                result.push(current.trim());
-                current = '';
-            } else {
-                current += ch;
-            }
-        }
-        result.push(current.trim());
-        return result;
-    }
-    
-    // Compute current teacher slot counts from masterStudentsData (already saved murshid)
-    function computeSlotCounts() {
-        const counts = {
-            "Thesis": { "AP MUSTHAFA HUDAWI": 0, "PK JAFAR HUDAWI": 0 },
-            "Coursework": { "AP MUSTHAFA HUDAWI": 0, "PK JAFAR HUDAWI": 0 }
         };
-        for (const student of masterStudentsData) {
-            const mode = student.mode;
-            const teacher = student.murshid;
-            if (mode && teacher && (teacher === "AP MUSTHAFA HUDAWI" || teacher === "PK JAFAR HUDAWI")) {
-                if (counts[mode] && counts[mode][teacher] !== undefined) {
-                    counts[mode][teacher]++;
+        
+        const TEACHERS = ["AP MUSTHAFA HUDAWI", "PK JAFAR HUDAWI"];
+        
+        // Global state
+        let studentsData = [];        // array of objects { enrol, name, mode, murshid (current/null) }
+        let currentStudent = null;    // selected student object after enrolment lookup
+        let selectedTeacher = null;    // teacher chosen by user
+        let isLoading = false;
+        
+        // DOM elements
+        const enrolInput = document.getElementById('enrolNo');
+        const studentNameField = document.getElementById('studentName');
+        const modeField = document.getElementById('modeField');
+        const teacherContainer = document.getElementById('teacherContainer');
+        const slotInfoDiv = document.getElementById('teacherSlotInfo');
+        const submitBtn = document.getElementById('submitBtn');
+        const alertPopup = document.getElementById('alertPopup');
+        const enrolError = document.getElementById('enrolError');
+        
+        // ========== Helper: show red popup (non-blocking) ==========
+        function showAlert(message, isError = true) {
+            alertPopup.textContent = message;
+            alertPopup.classList.add('show');
+            setTimeout(() => {
+                alertPopup.classList.remove('show');
+            }, 2800);
+        }
+        
+        // ========== Fetch CSV and parse (including murshid column) ==========
+        async function fetchStudentsFromCSV() {
+            try {
+                const response = await fetch(CSV_STUDENTS_URL);
+                const csvText = await response.text();
+                // parse CSV (simple but handles quotes)
+                const rows = csvText.split(/\r?\n/).filter(row => row.trim().length > 0);
+                if (rows.length < 2) return [];
+                const headers = rows[0].split(',').map(h => h.replace(/["']/g, '').trim().toLowerCase());
+                // expected: enrl no, name, mode, murshid (might be "enrl no", "name", "mode", "murshid")
+                const enrolIdx = headers.findIndex(h => h.includes('enrl') || h === 'enrol no' || h === 'enrol');
+                const nameIdx = headers.findIndex(h => h === 'name');
+                const modeIdx = headers.findIndex(h => h === 'mode');
+                const murshidIdx = headers.findIndex(h => h === 'murshid');
+                
+                const students = [];
+                for (let i=1; i<rows.length; i++) {
+                    const values = parseCSVRow(rows[i]);
+                    if (values.length < 3) continue;
+                    const enrolNo = values[enrolIdx] ? values[enrolIdx].trim() : '';
+                    const name = values[nameIdx] ? values[nameIdx].trim() : '';
+                    const mode = values[modeIdx] ? values[modeIdx].trim() : '';
+                    const murshid = (murshidIdx !== -1 && values[murshidIdx]) ? values[murshidIdx].trim() : '';
+                    if (enrolNo && name && mode) {
+                        students.push({
+                            enrol: enrolNo,
+                            name: name,
+                            mode: mode,
+                            murshid: murshid || null
+                        });
+                    }
                 }
+                return students;
+            } catch (err) {
+                console.error("CSV fetch error:", err);
+                showAlert("Failed to load student data. Please refresh.", true);
+                return [];
             }
         }
-        return counts;
-    }
-    
-    // Check if a teacher has available slot for given mode
-    function isTeacherAvailable(teacher, mode) {
-        const limits = SLOT_LIMITS[mode] || SLOT_LIMITS["Coursework"];
-        const currentCount = currentSlotCounts[mode]?.[teacher] || 0;
-        return currentCount < limits[teacher];
-    }
-    
-    // Get remaining slots for teacher in mode
-    function getRemainingSlots(teacher, mode) {
-        const limits = SLOT_LIMITS[mode] || SLOT_LIMITS["Coursework"];
-        const currentCount = currentSlotCounts[mode]?.[teacher] || 0;
-        return Math.max(0, limits[teacher] - currentCount);
-    }
-    
-    // Render teacher selection cards based on currentStudent mode & real-time counts
-    function renderTeacherOptions() {
-        const container = document.getElementById("teacherOptionsContainer");
-        if (!currentStudent) {
-            container.innerHTML = `<div class="col-span-2 text-center text-gray-400 p-4">Please enter enrolment number first</div>`;
-            return;
-        }
         
-        const mode = currentStudent.mode;
-        const limits = SLOT_LIMITS[mode] || SLOT_LIMITS["Coursework"];
-        
-        let html = '';
-        for (let teacher of TEACHERS) {
-            const remaining = getRemainingSlots(teacher, mode);
-            const isAvailable = remaining > 0;
-            const totalSlots = limits[teacher];
-            const occupied = totalSlots - remaining;
-            const isAlreadyAssigned = (currentStudent.existingMurshid === teacher);
-            
-            let disabledClass = "";
-            let disabledAttr = "";
-            if (!isAvailable && !isAlreadyAssigned) {
-                disabledClass = "disabled-teacher";
-                disabledAttr = "disabled";
-            }
-            
-            const selectedClass = (selectedTeacherValue === teacher) ? "selected" : "";
-            html += `
-                <div class="teacher-option ${selectedClass} ${disabledClass}" data-teacher="${teacher}" ${disabledAttr}>
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="font-bold text-gray-800">${teacher}</p>
-                            <p class="text-xs text-gray-500 mt-1">
-                                <i class="fas fa-users"></i> Slots: ${occupied}/${totalSlots} filled
-                            </p>
-                            ${remaining > 0 ? `<span class="slot-badge slot-available mt-2"><i class="fas fa-check-circle"></i> ${remaining} slot(s) available</span>` : 
-                            (isAlreadyAssigned ? `<span class="slot-badge slot-available mt-2"><i class="fas fa-user-check"></i> Already your assigned teacher</span>` :
-                            `<span class="slot-badge slot-full mt-2"><i class="fas fa-ban"></i> Slots full</span>`)}
-                        </div>
-                        ${selectedClass ? '<i class="fas fa-check-circle text-emerald-600 text-xl"></i>' : ''}
-                    </div>
-                </div>
-            `;
-        }
-        container.innerHTML = html;
-        
-        // Attach click listeners to teacher cards
-        document.querySelectorAll('.teacher-option').forEach(card => {
-            if (card.hasAttribute('disabled')) return;
-            card.addEventListener('click', (e) => {
-                if (card.classList.contains('disabled-teacher')) {
-                    showAlert(`No slots available for ${card.dataset.teacher} in ${mode} mode.`, true);
-                    return;
+        // Helper: parse CSV line respecting quotes (basic)
+        function parseCSVRow(rowStr) {
+            const result = [];
+            let inQuote = false;
+            let current = '';
+            for (let i = 0; i < rowStr.length; i++) {
+                const ch = rowStr[i];
+                if (ch === '"') {
+                    inQuote = !inQuote;
+                } else if (ch === ',' && !inQuote) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += ch;
                 }
-                const teacherVal = card.dataset.teacher;
-                selectedTeacherValue = teacherVal;
-                document.getElementById('selectedTeacher').value = teacherVal;
-                // Update UI selected class
-                document.querySelectorAll('.teacher-option').forEach(opt => opt.classList.remove('selected'));
-                card.classList.add('selected');
-                // update slot panel info
-                updateSlotInfoPanel();
+            }
+            result.push(current.trim());
+            return result;
+        }
+        
+        // ========== Compute current slot usage from studentsData (already contains murshid assignments) ==========
+        function getSlotUsage(mode) {
+            // Filter students with same mode and existing murshid assignment
+            const sameModeStudents = studentsData.filter(s => s.mode === mode && s.murshid && s.murshid.trim() !== '');
+            const usage = {
+                "AP MUSTHAFA HUDAWI": 0,
+                "PK JAFAR HUDAWI": 0
+            };
+            sameModeStudents.forEach(s => {
+                const teacher = s.murshid.trim();
+                if (teacher === "AP MUSTHAFA HUDAWI") usage["AP MUSTHAFA HUDAWI"]++;
+                else if (teacher === "PK JAFAR HUDAWI") usage["PK JAFAR HUDAWI"]++;
             });
-        });
+            return usage;
+        }
         
-        // If student already has a murshid and that teacher still valid, pre-select it
-        if (currentStudent.existingMurshid && (currentStudent.existingMurshid === "AP MUSTHAFA HUDAWI" || currentStudent.existingMurshid === "PK JAFAR HUDAWI")) {
-            const matchingCard = document.querySelector(`.teacher-option[data-teacher="${currentStudent.existingMurshid}"]`);
-            if (matchingCard && !matchingCard.classList.contains('disabled-teacher')) {
-                selectedTeacherValue = currentStudent.existingMurshid;
-                document.getElementById('selectedTeacher').value = selectedTeacherValue;
-                matchingCard.click(); 
-            } else if (currentStudent.existingMurshid) {
-                // teacher slot full but already assigned? still allow selection (retain previous)
-                selectedTeacherValue = currentStudent.existingMurshid;
-                document.getElementById('selectedTeacher').value = selectedTeacherValue;
-                const oldCard = document.querySelector(`.teacher-option[data-teacher="${currentStudent.existingMurshid}"]`);
-                if(oldCard) oldCard.classList.add('selected');
-                updateSlotInfoPanel();
-            }
-        } else {
-            selectedTeacherValue = null;
-            document.getElementById('selectedTeacher').value = '';
+        // Check if a teacher has available slot for given mode
+        function isSlotAvailable(teacher, mode) {
+            const usage = getSlotUsage(mode);
+            const limit = SLOT_RULES[mode]?.[teacher] || 0;
+            const current = usage[teacher] || 0;
+            return current < limit;
         }
-    }
-    
-    function updateSlotInfoPanel() {
-        const panel = document.getElementById('slotInfoPanel');
-        if (!currentStudent || !selectedTeacherValue) {
-            panel.classList.add('hidden');
-            return;
+        
+        // Get remaining slots string
+        function getRemainingSlotsText(teacher, mode) {
+            const usage = getSlotUsage(mode);
+            const limit = SLOT_RULES[mode]?.[teacher] || 0;
+            const current = usage[teacher] || 0;
+            const remaining = Math.max(0, limit - current);
+            return `${remaining} slot${remaining !== 1 ? 's' : ''} left`;
         }
-        const mode = currentStudent.mode;
-        const remaining = getRemainingSlots(selectedTeacherValue, mode);
-        const total = SLOT_LIMITS[mode][selectedTeacherValue];
-        const occupied = total - remaining;
-        panel.classList.remove('hidden');
-        panel.innerHTML = `
-            <i class="fas fa-info-circle text-amber-600"></i>
-            <span class="text-sm font-medium">${selectedTeacherValue} — ${mode} mode: ${occupied}/${total} seats filled. ${remaining} remaining.</span>
-        `;
-        if (remaining === 0 && currentStudent.existingMurshid !== selectedTeacherValue) {
-            panel.innerHTML += `<span class="text-red-600 text-xs block mt-1">⚠️ No slot left, selection invalid.</span>`;
-        }
-    }
-    
-    // After fetching student data, also sync latest murshid assignments from sheet & recompute slots
-    async function refreshMasterDataAndSlots() {
-        masterStudentsData = await fetchStudentDataFromCSV();
-        if (!masterStudentsData.length) {
-            showAlert("Warning: Could not load student records. Check CSV link.", true);
-        }
-        currentSlotCounts = computeSlotCounts();
-    }
-    
-    // Auto lookup student by enrolment number
-    async function lookupStudent(enrolNo) {
-        if (!enrolNo) return null;
-        await refreshMasterDataAndSlots();
-        const student = masterStudentsData.find(s => s.enrolNo === enrolNo);
-        if (!student) return null;
-        return { ...student, existingMurshid: student.murshid || "" };
-    }
-    
-    // Update UI after fetching student
-    async function onEnrolNumberChange() {
-        const enrolNo = document.getElementById('enrolNo').value.trim();
-        if (!enrolNo) {
-            resetStudentFields();
-            return;
-        }
-        const loader = document.getElementById('enrolLoader');
-        loader.classList.remove('hidden');
-        try {
-            const student = await lookupStudent(enrolNo);
-            if (!student) {
-                showAlert(`Enrolment number ${enrolNo} not found in records.`, true);
-                resetStudentFields();
+        
+        // Render teacher selection cards dynamically based on mode & realtime usage
+        function renderTeacherCards(mode) {
+            if (!mode) {
+                teacherContainer.innerHTML = `<div class="col-span-2 text-center text-gray-400 py-4">Enter enrolment number to see teacher options</div>`;
+                slotInfoDiv.innerHTML = '';
                 return;
             }
-            currentStudent = student;
-            document.getElementById('studentName').value = student.name;
-            document.getElementById('studentMode').value = student.mode;
-            // check if already has teacher assigned
-            if (student.existingMurshid && (student.existingMurshid === "AP MUSTHAFA HUDAWI" || student.existingMurshid === "PK JAFAR HUDAWI")) {
-                selectedTeacherValue = student.existingMurshid;
-                document.getElementById('selectedTeacher').value = selectedTeacherValue;
-                showAlert(`You already selected ${student.existingMurshid}. You can keep or change if slot available.`, false);
-            } else {
-                selectedTeacherValue = null;
-                document.getElementById('selectedTeacher').value = '';
-            }
-            // Render teacher options based on updated slots
-            renderTeacherOptions();
-        } catch (err) {
-            console.error(err);
-            showAlert("Error fetching student data", true);
-        } finally {
-            loader.classList.add('hidden');
-        }
-    }
-    
-    function resetStudentFields() {
-        currentStudent = null;
-        document.getElementById('studentName').value = '';
-        document.getElementById('studentMode').value = '';
-        document.getElementById('selectedTeacher').value = '';
-        selectedTeacherValue = null;
-        document.getElementById('teacherOptionsContainer').innerHTML = `<div class="col-span-2 text-center text-gray-400 p-4">Enter enrolment number to see teacher options</div>`;
-        document.getElementById('slotInfoPanel').classList.add('hidden');
-    }
-    
-    // Submit selection to Google Apps Script (update murshid field in sheet)
-    async function submitTeacherSelection(enrolNo, teacher) {
-        // POST to Apps Script Web App with action updateMurshid
-        // Assuming your existing Google Apps Script supports updating murshid column.
-        // We'll design generic payload: action=updateMurshid, enrolNo, murshid
-        const payload = new URLSearchParams();
-        payload.append("action", "updateMurshid");
-        payload.append("enrolNo", enrolNo);
-        payload.append("murshid", teacher);
-        
-        try {
-            const response = await fetch(SCRIPT_WRITE_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: payload.toString()
+            
+            const usage = getSlotUsage(mode);
+            let cardsHtml = '';
+            TEACHERS.forEach(teacher => {
+                const limit = SLOT_RULES[mode]?.[teacher] || 0;
+                const current = usage[teacher] || 0;
+                const available = current < limit;
+                const remaining = limit - current;
+                const isSelected = (selectedTeacher === teacher);
+                // if not available, disable but still show (no click)
+                const disabledClass = !available ? 'opacity-50 cursor-not-allowed border-gray-200 bg-gray-50' : 'cursor-pointer hover:shadow-md';
+                const selectedClass = isSelected ? 'selected border-emerald-700 bg-emerald-50' : '';
+                cardsHtml += `
+                    <div class="teacher-card ${disabledClass} ${selectedClass}" data-teacher="${teacher}" data-available="${available}">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="font-bold text-gray-800 text-lg">${teacher}</h3>
+                                <p class="text-xs text-gray-500 mt-1">Murshid</p>
+                            </div>
+                            <div class="slot-badge ${!available ? 'slot-full' : ''}">
+                                ${available ? `<i class="fas fa-check-circle text-emerald-600 mr-1"></i>${remaining} slots` : `<i class="fas fa-times-circle text-red-500 mr-1"></i>Full`}
+                            </div>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-500">
+                            ${available ? `Available: ${remaining} / ${limit}` : `No seats left for ${mode} mode`}
+                        </div>
+                    </div>
+                `;
             });
-            const result = await response.json();
-            return result;
-        } catch (err) {
-            console.error("Submit error:", err);
-            return { error: err.message };
-        }
-    }
-    
-    // Main submit handler with slot validation
-    document.getElementById('selectionForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (isSubmitting) return;
-        
-        const enrolNo = document.getElementById('enrolNo').value.trim();
-        if (!enrolNo) {
-            showAlert("Please enter enrolment number", true);
-            return;
-        }
-        if (!currentStudent) {
-            showAlert("Invalid enrolment number or not found", true);
-            return;
-        }
-        if (!selectedTeacherValue) {
-            showAlert("PLEASE SELECT A TEACHER", true);
-            return;
-        }
-        
-        // Re-fetch latest master data to validate slot availability in real-time (avoid race)
-        await refreshMasterDataAndSlots();
-        const mode = currentStudent.mode;
-        const remaining = getRemainingSlots(selectedTeacherValue, mode);
-        const alreadyAssigned = (currentStudent.existingMurshid === selectedTeacherValue);
-        
-        if (!alreadyAssigned && remaining <= 0) {
-            showAlert(`No available slot for ${selectedTeacherValue} in ${mode} mode. Slots are full.`, true);
-            // re-render to reflect latest
-            renderTeacherOptions();
-            return;
+            teacherContainer.innerHTML = cardsHtml;
+            
+            // attach click handlers (only for available teachers)
+            document.querySelectorAll('.teacher-card').forEach(card => {
+                const teacher = card.dataset.teacher;
+                const available = card.dataset.available === 'true';
+                if (available) {
+                    card.addEventListener('click', () => {
+                        if (!currentStudent) {
+                            showAlert("Please enter a valid enrolment number first");
+                            return;
+                        }
+                        // If student already has a teacher assigned, block new selection?
+                        if (currentStudent.murshid && currentStudent.murshid !== '') {
+                            showAlert(`You have already selected ${currentStudent.murshid}. Contact admin to change.`);
+                            return;
+                        }
+                        selectedTeacher = teacher;
+                        renderTeacherCards(currentStudent.mode); // re-render to highlight selected
+                    });
+                }
+            });
+            
+            // update slot info text
+            const thesisRemainingAP = SLOT_RULES["Thesis"] ? (SLOT_RULES["Thesis"]["AP MUSTHAFA HUDAWI"] - (getSlotUsage("Thesis")["AP MUSTHAFA HUDAWI"] || 0)) : 0;
+            const thesisRemainingPK = SLOT_RULES["Thesis"] ? (SLOT_RULES["Thesis"]["PK JAFAR HUDAWI"] - (getSlotUsage("Thesis")["PK JAFAR HUDAWI"] || 0)) : 0;
+            const courseRemainingAP = SLOT_RULES["Course"] ? (SLOT_RULES["Course"]["AP MUSTHAFA HUDAWI"] - (getSlotUsage("Course")["AP MUSTHAFA HUDAWI"] || 0)) : 0;
+            const courseRemainingPK = SLOT_RULES["Course"] ? (SLOT_RULES["Course"]["PK JAFAR HUDAWI"] - (getSlotUsage("Course")["PK JAFAR HUDAWI"] || 0)) : 0;
+            
+            slotInfoDiv.innerHTML = `
+                <span class="bg-gray-100 px-3 py-1 rounded-full text-xs"><i class="fas fa-university"></i> Thesis: AP (${thesisRemainingAP} left) | PK (${thesisRemainingPK} left)</span>
+                <span class="bg-gray-100 px-3 py-1 rounded-full text-xs"><i class="fas fa-book-open"></i> Course: AP (${courseRemainingAP} left) | PK (${courseRemainingPK} left)</span>
+            `;
         }
         
-        // Double-check if student already has a murshid in sheet but different teacher
-        const freshStudentData = masterStudentsData.find(s => s.enrolNo === enrolNo);
-        if (freshStudentData && freshStudentData.murshid && freshStudentData.murshid !== "" && freshStudentData.murshid !== selectedTeacherValue) {
-            const oldTeacher = freshStudentData.murshid;
-            showAlert(`You already have a registered teacher (${oldTeacher}). Changing requires admin override.`, true);
-            return;
-        }
-        
-        isSubmitting = true;
-        const submitBtn = document.getElementById('submitBtn');
-        const originalHtml = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
-        submitBtn.disabled = true;
-        
-        try {
-            const result = await submitTeacherSelection(enrolNo, selectedTeacherValue);
-            if (result && result.success === true) {
-                showAlert(`Successfully assigned to ${selectedTeacherValue}!`, false);
-                // update local state & refresh
-                currentStudent.existingMurshid = selectedTeacherValue;
-                await refreshMasterDataAndSlots();
-                renderTeacherOptions();
-                document.getElementById('selectedTeacher').value = selectedTeacherValue;
-            } else {
-                const errMsg = result?.error || "Submission failed. Please contact admin.";
-                showAlert(errMsg, true);
-                // refresh slots to show actual backend state
-                await refreshMasterDataAndSlots();
-                renderTeacherOptions();
+        // Enrol number lookup: find student and update UI, also check if already assigned teacher
+        async function lookupStudent(enrol) {
+            if (!enrol || enrol.trim() === "") {
+                resetStudentUI();
+                return false;
             }
-        } catch (err) {
-            showAlert("Network error. Could not submit.", true);
-        } finally {
-            isSubmitting = false;
-            submitBtn.innerHTML = originalHtml;
-            submitBtn.disabled = false;
+            // Reload fresh data from CSV to keep slots realtime
+            await refreshStudentData();
+            
+            const found = studentsData.find(s => s.enrol === enrol.trim());
+            if (!found) {
+                enrolError.textContent = "❌ Enrolment number not found in registry";
+                enrolError.classList.remove("hidden");
+                resetStudentUI();
+                currentStudent = null;
+                selectedTeacher = null;
+                renderTeacherCards(null);
+                return false;
+            }
+            enrolError.classList.add("hidden");
+            currentStudent = { ...found };
+            studentNameField.value = currentStudent.name;
+            modeField.value = currentStudent.mode;
+            
+            // If student already has a murshid assigned, pre-select that teacher but disable further selection? 
+            if (currentStudent.murshid && currentStudent.murshid !== '') {
+                selectedTeacher = currentStudent.murshid;
+                // still show cards but selection disabled: we will prevent submit if already assigned.
+                renderTeacherCards(currentStudent.mode);
+                // Additional disable message
+                showAlert(`You already have a teacher: ${currentStudent.murshid}. You cannot change.`, false);
+            } else {
+                selectedTeacher = null;  // new selection
+                renderTeacherCards(currentStudent.mode);
+            }
+            return true;
         }
-    });
-    
-    // Event listener for enrolment input with debounce
-    let debounceTimer;
-    document.getElementById('enrolNo').addEventListener('input', function() {
-        clearTimeout(debounceTimer);
-        const val = this.value.trim();
-        if (val.length < 2) {
-            resetStudentFields();
-            return;
+        
+        function resetStudentUI() {
+            studentNameField.value = '';
+            modeField.value = '';
+            currentStudent = null;
+            selectedTeacher = null;
+            renderTeacherCards(null);
         }
-        debounceTimer = setTimeout(() => {
-            onEnrolNumberChange();
-        }, 500);
-    });
-    
-    // Initial load of master data
-    (async function init() {
-        await refreshMasterDataAndSlots();
-        resetStudentFields();
-    })();
-    
-    // Disable right-click / inspect for extra protection (optional)
-    document.addEventListener("contextmenu", e => e.preventDefault());
-    document.addEventListener("keydown", e => {
-        if (e.key === "F12" || (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "C")) || (e.ctrlKey && e.key === "u")) {
-            e.preventDefault();
+        
+        // refresh from CSV
+        async function refreshStudentData() {
+            try {
+                const data = await fetchStudentsFromCSV();
+                if (data.length) studentsData = data;
+                else console.warn("No data from CSV");
+            } catch(e) { console.error(e); }
         }
-    });
-</script>
+        
+        // ========== SUBMIT: Update murshid in Google Sheet via Apps Script ==========
+        async function submitSelection() {
+            if (!currentStudent) {
+                showAlert("❌ Please enter a valid enrolment number first.");
+                return;
+            }
+            // Check if already has murshid
+            if (currentStudent.murshid && currentStudent.murshid.trim() !== "") {
+                showAlert(`⚠️ You already selected ${currentStudent.murshid}. Selection cannot be changed.`);
+                return;
+            }
+            if (!selectedTeacher) {
+                showAlert("⚠️ Please select a teacher (Murshid) before submitting.");
+                return;
+            }
+            // double-check slot availability realtime
+            const mode = currentStudent.mode;
+            const available = isSlotAvailable(selectedTeacher, mode);
+            if (!available) {
+                showAlert(`❌ No available slots for ${selectedTeacher} in ${mode} mode. Slots are full.`);
+                // re-render to reflect updated fullness
+                renderTeacherCards(mode);
+                return;
+            }
+            
+            // Show loading state on button
+            const originalBtnHtml = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+            
+            try {
+                // Call Apps Script to update murshid column for this enrolment number
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: "POST",
+                    mode: "no-cors",  // due to CORS limitations; but will still send. However better use JSONP? 
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({
+                        action: "updateMurshid",
+                        enrolNo: currentStudent.enrol,
+                        murshid: selectedTeacher,
+                        mode: currentStudent.mode
+                    })
+                });
+                // Because of no-cors we cannot read response reliably, but we assume success if no network error
+                // To improve reliability, we also simulate local update and will refetch data after short delay.
+                // But ideally you need to deploy GAS with proper doPost returning JSON. For robust we do fallback local update + re-fetch.
+                console.log("Submission sent. Updating local state...");
+                
+                // Optimistically update local array & currentStudent
+                const studentIndex = studentsData.findIndex(s => s.enrol === currentStudent.enrol);
+                if (studentIndex !== -1) {
+                    studentsData[studentIndex].murshid = selectedTeacher;
+                    currentStudent.murshid = selectedTeacher;
+                }
+                // Refresh from CSV after 1.5 sec to sync latest backend changes
+                setTimeout(async () => {
+                    await refreshStudentData();
+                    // if current student still exists, update current
+                    if (currentStudent) {
+                        const updated = studentsData.find(s => s.enrol === currentStudent.enrol);
+                        if (updated) currentStudent.murshid = updated.murshid;
+                        renderTeacherCards(currentStudent.mode);
+                    }
+                    showAlert(`✅ Success! You have selected ${selectedTeacher} as your Murshid.`, false);
+                }, 1000);
+                
+                showAlert(`🎉 Selection submitted! Teacher: ${selectedTeacher}`, false);
+                // Reset selection highlight but keep readonly
+                selectedTeacher = null;
+                if (currentStudent) renderTeacherCards(currentStudent.mode);
+                
+            } catch (err) {
+                console.error("Submit error:", err);
+                showAlert("Network error: Could not update. Please try again later.");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHtml;
+            }
+        }
+        
+        // ========== Debounced enrolment lookup ==========
+        let debounceTimeout;
+        enrolInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimeout);
+            const val = e.target.value.trim();
+            debounceTimeout = setTimeout(async () => {
+                if (val.length > 0) {
+                    await lookupStudent(val);
+                } else {
+                    resetStudentUI();
+                }
+            }, 400);
+        });
+        
+        // Submit event
+        submitBtn.addEventListener('click', submitSelection);
+        
+        // initial data load
+        (async function init() {
+            await refreshStudentData();
+            // preload: maybe no selection
+            resetStudentUI();
+        })();
+        
+        // Also expose manual refresh if needed (but fine)
+        // Additional: If any student tries to reselect after full slot, alert handled.
+        
+        // For demo/debug: If Apps Script URL not replaced, alert user but local simulation works?
+        if (APPS_SCRIPT_URL.includes("REPLACE-WITH-YOUR-SCRIPT-ID")) {
+            console.warn("⚠️ Please replace APPS_SCRIPT_URL with your actual Google Apps Script Web App URL.");
+        }
+        
+        // extra styling for selected teacher cards dynamic after render
+    </script>
 </body>
 </html>

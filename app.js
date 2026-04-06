@@ -1,11 +1,11 @@
 // ============================================
 // THARBIYYA - TEACHER SELECTION PORTAL
-// Frontend JavaScript (app.js)
+// Frontend JavaScript with Already Submitted Tracking
 // ============================================
 
 // Configuration
 // IMPORTANT: Replace with your actual Google Apps Script Web App URL
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby8vM9lOeZaA6RyHu1q7LSrGKx8Z7CRKl9-_7uSpQFqWKbeA9VG-dbgaEYAAGnYtwnQ/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz60SiLhiF9aNledxt7RUCwlu_HX5Ae5lWmaWEb2ZP20QGhnHDYtR0zSDtVM2T1nehb/exec";
 
 // Slot limits
 const SLOT_RULES = {
@@ -26,16 +26,19 @@ let studentsData = [];      // Array of student objects { enrol, name, mode, mur
 let currentStudent = null;  // Currently selected student
 let selectedTeacher = null;  // Teacher chosen by user
 let slotStats = null;        // Cached slot statistics
+let isAlreadySubmitted = false; // Track if current student already submitted
 
 // DOM Elements
 const enrolInput = document.getElementById('enrolNo');
 const studentNameField = document.getElementById('studentName');
 const modeField = document.getElementById('modeField');
 const teacherContainer = document.getElementById('teacherContainer');
-const slotInfoDiv = document.getElementById('slotInfo');
+const slotInfoDiv = document.getElementById('teacherSlotInfo');
 const submitBtn = document.getElementById('submitBtn');
 const alertPopup = document.getElementById('alertPopup');
 const enrolError = document.getElementById('enrolError');
+const alreadySubmittedAlert = document.getElementById('alreadySubmittedAlert');
+const assignedMurshidText = document.getElementById('assignedMurshidText');
 
 // ============================================
 // 🚀 INITIALIZATION
@@ -109,7 +112,7 @@ async function loadSlotStatistics() {
 }
 
 // ============================================
-// 🔍 STUDENT LOOKUP
+// 🔍 STUDENT LOOKUP - WITH SUBMISSION CHECK
 // ============================================
 
 async function lookupStudent(enrol) {
@@ -130,6 +133,7 @@ async function lookupStudent(enrol) {
         resetStudentUI();
         currentStudent = null;
         selectedTeacher = null;
+        isAlreadySubmitted = false;
         renderTeacherCards(null);
         return false;
     }
@@ -139,20 +143,33 @@ async function lookupStudent(enrol) {
     studentNameField.value = currentStudent.name;
     modeField.value = currentStudent.mode;
     
-    // Check if student already has a teacher assigned
+    // CHECK IF STUDENT ALREADY SUBMITTED (has murshid assigned)
     if (currentStudent.murshid && currentStudent.murshid.trim() !== "") {
+        isAlreadySubmitted = true;
         selectedTeacher = currentStudent.murshid;
-        renderTeacherCards(currentStudent.mode);
-        showAlert(`ℹ️ You already have a teacher: ${currentStudent.murshid}. Selection cannot be changed.`, false);
+        
+        // Show the "Already Submitted" alert banner
+        alreadySubmittedAlert.classList.remove("hidden");
+        assignedMurshidText.innerHTML = `<strong>Murshid:</strong> ${currentStudent.murshid}`;
+        
+        // Disable teacher selection cards and submit button
+        renderTeacherCards(currentStudent.mode, true); // Pass true to disable cards
         submitBtn.disabled = true;
         submitBtn.style.opacity = "0.6";
         submitBtn.style.cursor = "not-allowed";
+        submitBtn.innerHTML = '<i class="fas fa-lock"></i> Already Submitted';
+        
+        showAlert(`ℹ️ You have already submitted your selection. Your Murshid is: ${currentStudent.murshid}`, false);
+        
     } else {
+        isAlreadySubmitted = false;
+        alreadySubmittedAlert.classList.add("hidden");
         selectedTeacher = null;
-        renderTeacherCards(currentStudent.mode);
+        renderTeacherCards(currentStudent.mode, false);
         submitBtn.disabled = false;
         submitBtn.style.opacity = "1";
         submitBtn.style.cursor = "pointer";
+        submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm & Submit';
     }
     
     return true;
@@ -163,10 +180,14 @@ function resetStudentUI() {
     modeField.value = '';
     currentStudent = null;
     selectedTeacher = null;
+    isAlreadySubmitted = false;
+    alreadySubmittedAlert.classList.add("hidden");
     renderTeacherCards(null);
     submitBtn.disabled = false;
     submitBtn.style.opacity = "1";
     submitBtn.style.cursor = "pointer";
+    submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm & Submit';
+    enrolError.classList.add("hidden");
 }
 
 // ============================================
@@ -204,7 +225,7 @@ function getRemainingSlots(teacher, mode) {
     return Math.max(0, limit - current);
 }
 
-function renderTeacherCards(mode) {
+function renderTeacherCards(mode, forceDisabled = false) {
     if (!mode) {
         teacherContainer.innerHTML = `
             <div class="col-span-2 text-center text-gray-400 py-8">
@@ -225,20 +246,40 @@ function renderTeacherCards(mode) {
         const available = current < limit;
         const remaining = limit - current;
         const isSelected = (selectedTeacher === teacher);
-        const isAlreadyAssigned = currentStudent?.murshid && currentStudent.murshid.trim() !== "";
         
+        // Determine if card should be disabled
         let disabledClass = '';
         let clickHandler = '';
+        let disabledReason = '';
         
-        if (!available || isAlreadyAssigned) {
-            disabledClass = 'opacity-50 cursor-not-allowed border-gray-200 bg-gray-50';
+        if (forceDisabled || isAlreadySubmitted) {
+            disabledClass = 'disabled-card opacity-50 cursor-not-allowed border-gray-200 bg-gray-50';
             clickHandler = '';
+            disabledReason = 'already-submitted';
+        } else if (!available) {
+            disabledClass = 'disabled-card opacity-50 cursor-not-allowed border-gray-200 bg-gray-50';
+            clickHandler = '';
+            disabledReason = 'slot-full';
         } else {
             disabledClass = 'cursor-pointer hover:shadow-md transition-all';
             clickHandler = `onclick="selectTeacher('${teacher}')"`;
         }
         
-        const selectedClass = isSelected ? 'selected border-emerald-700 bg-emerald-50' : '';
+        const selectedClass = (isSelected && !forceDisabled && !isAlreadySubmitted) ? 'selected border-emerald-700 bg-emerald-50' : '';
+        
+        // Status badge text
+        let badgeText = '';
+        let badgeClass = '';
+        if (forceDisabled || isAlreadySubmitted) {
+            badgeText = 'Locked';
+            badgeClass = 'bg-gray-300 text-gray-600';
+        } else if (!available) {
+            badgeText = 'Full';
+            badgeClass = 'bg-red-100 text-red-700';
+        } else {
+            badgeText = `${remaining} slot${remaining !== 1 ? 's' : ''} left`;
+            badgeClass = 'bg-emerald-100 text-emerald-700';
+        }
         
         cardsHtml += `
             <div class="teacher-card border-2 rounded-xl p-4 ${disabledClass} ${selectedClass}" ${clickHandler} data-teacher="${teacher}">
@@ -247,12 +288,12 @@ function renderTeacherCards(mode) {
                         <h3 class="font-bold text-gray-800 text-lg">${teacher}</h3>
                         <p class="text-xs text-gray-500 mt-1">Murshid</p>
                     </div>
-                    <div class="text-xs font-semibold px-3 py-1 rounded-full ${available ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">
-                        ${available ? `✓ ${remaining} slot${remaining !== 1 ? 's' : ''} left` : '✗ Full'}
+                    <div class="text-xs font-semibold px-3 py-1 rounded-full ${badgeClass}">
+                        ${badgeText}
                     </div>
                 </div>
                 <div class="mt-2 text-xs text-gray-500">
-                    ${available ? `Available: ${remaining} / ${limit}` : `No seats left for ${mode} mode`}
+                    ${!forceDisabled && !isAlreadySubmitted ? (available ? `Available: ${remaining} / ${limit}` : `No seats left for ${mode} mode`) : 'Selection already completed'}
                 </div>
             </div>
         `;
@@ -260,30 +301,43 @@ function renderTeacherCards(mode) {
     
     teacherContainer.innerHTML = cardsHtml;
     
-    // Update slot info summary
-    const thesisAPRemaining = getRemainingSlots("AP MUSTHAFA HUDAWI", "Thesis");
-    const thesisPKRemaining = getRemainingSlots("PK JAFAR HUDAWI", "Thesis");
-    const courseAPRemaining = getRemainingSlots("AP MUSTHAFA HUDAWI", "Course");
-    const coursePKRemaining = getRemainingSlots("PK JAFAR HUDAWI", "Course");
-    
-    slotInfoDiv.innerHTML = `
-        <div class="flex flex-wrap gap-3 justify-between">
-            <span class="bg-gray-100 px-3 py-1.5 rounded-full text-xs font-medium">
-                <i class="fas fa-university text-emerald-600 mr-1"></i> Thesis: 
-                AP (${thesisAPRemaining}) | PK (${thesisPKRemaining})
-            </span>
-            <span class="bg-gray-100 px-3 py-1.5 rounded-full text-xs font-medium">
-                <i class="fas fa-book-open text-emerald-600 mr-1"></i> Course: 
-                AP (${courseAPRemaining}) | PK (${coursePKRemaining})
-            </span>
-        </div>
-    `;
+    // Update slot info summary (only show if not already submitted)
+    if (!forceDisabled && !isAlreadySubmitted) {
+        const thesisAPRemaining = getRemainingSlots("AP MUSTHAFA HUDAWI", "Thesis");
+        const thesisPKRemaining = getRemainingSlots("PK JAFAR HUDAWI", "Thesis");
+        const courseAPRemaining = getRemainingSlots("AP MUSTHAFA HUDAWI", "Course");
+        const coursePKRemaining = getRemainingSlots("PK JAFAR HUDAWI", "Course");
+        
+        slotInfoDiv.innerHTML = `
+            <div class="flex flex-wrap gap-3 justify-between">
+                <span class="bg-gray-100 px-3 py-1.5 rounded-full text-xs font-medium">
+                    <i class="fas fa-university text-emerald-600 mr-1"></i> Thesis: 
+                    AP (${thesisAPRemaining}) | PK (${thesisPKRemaining})
+                </span>
+                <span class="bg-gray-100 px-3 py-1.5 rounded-full text-xs font-medium">
+                    <i class="fas fa-book-open text-emerald-600 mr-1"></i> Course: 
+                    AP (${courseAPRemaining}) | PK (${coursePKRemaining})
+                </span>
+            </div>
+        `;
+    } else {
+        slotInfoDiv.innerHTML = `
+            <div class="text-center text-amber-600 text-xs">
+                <i class="fas fa-info-circle"></i> Submission already completed
+            </div>
+        `;
+    }
 }
 
 // Global function for teacher selection (called from onclick)
 window.selectTeacher = function(teacher) {
     if (!currentStudent) {
         showAlert("Please enter a valid enrolment number first");
+        return;
+    }
+    
+    if (isAlreadySubmitted) {
+        showAlert(`You have already submitted your selection. Your Murshid is: ${currentStudent.murshid}`);
         return;
     }
     
@@ -294,17 +348,17 @@ window.selectTeacher = function(teacher) {
     
     if (!isSlotAvailable(teacher, currentStudent.mode)) {
         showAlert(`No available slots for ${teacher} in ${currentStudent.mode} mode. Slots are full.`);
-        renderTeacherCards(currentStudent.mode);
+        renderTeacherCards(currentStudent.mode, false);
         return;
     }
     
     selectedTeacher = teacher;
-    renderTeacherCards(currentStudent.mode);
+    renderTeacherCards(currentStudent.mode, false);
     showAlert(`Selected: ${teacher}`, false);
 };
 
 // ============================================
-// 📤 SUBMIT SELECTION
+// 📤 SUBMIT SELECTION - WITH DUPLICATE CHECK
 // ============================================
 
 async function submitSelection() {
@@ -313,8 +367,21 @@ async function submitSelection() {
         return;
     }
     
-    if (currentStudent.murshid && currentStudent.murshid.trim() !== "") {
-        showAlert(`⚠️ You already selected ${currentStudent.murshid}. Selection cannot be changed.`);
+    // Check if already submitted (double-check with latest data)
+    await loadAllStudents();
+    const latestStudent = studentsData.find(s => String(s.enrol).trim() === String(currentStudent.enrol).trim());
+    
+    if (latestStudent && latestStudent.murshid && latestStudent.murshid.trim() !== "") {
+        isAlreadySubmitted = true;
+        currentStudent.murshid = latestStudent.murshid;
+        alreadySubmittedAlert.classList.remove("hidden");
+        assignedMurshidText.innerHTML = `<strong>Murshid:</strong> ${latestStudent.murshid}`;
+        showAlert(`❌ You have already submitted your selection. Your Murshid is: ${latestStudent.murshid}`);
+        renderTeacherCards(currentStudent.mode, true);
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = "0.6";
+        submitBtn.style.cursor = "not-allowed";
+        submitBtn.innerHTML = '<i class="fas fa-lock"></i> Already Submitted';
         return;
     }
     
@@ -326,7 +393,7 @@ async function submitSelection() {
     // Double-check slot availability
     if (!isSlotAvailable(selectedTeacher, currentStudent.mode)) {
         showAlert(`❌ No available slots for ${selectedTeacher} in ${currentStudent.mode} mode. Slots are full.`);
-        renderTeacherCards(currentStudent.mode);
+        renderTeacherCards(currentStudent.mode, false);
         return;
     }
     
@@ -355,36 +422,47 @@ async function submitSelection() {
         if (result.success) {
             // Update local data
             currentStudent.murshid = selectedTeacher;
+            isAlreadySubmitted = true;
+            
             const index = studentsData.findIndex(s => s.enrol === currentStudent.enrol);
             if (index !== -1) {
                 studentsData[index].murshid = selectedTeacher;
             }
             
+            // Show the "Already Submitted" alert banner
+            alreadySubmittedAlert.classList.remove("hidden");
+            assignedMurshidText.innerHTML = `<strong>Murshid:</strong> ${selectedTeacher}`;
+            
             showAlert(`✅ Success! You have selected ${selectedTeacher} as your Murshid.`, false);
             
             // Refresh and disable further changes
             await loadSlotStatistics();
-            renderTeacherCards(currentStudent.mode);
+            renderTeacherCards(currentStudent.mode, true);
             submitBtn.disabled = true;
             submitBtn.style.opacity = "0.6";
             submitBtn.style.cursor = "not-allowed";
+            submitBtn.innerHTML = '<i class="fas fa-check-double"></i> Submitted Successfully';
             
         } else {
-            showAlert(`❌ Submission failed: ${result.error || "Unknown error"}`);
+            // Check if error is because already submitted
+            if (result.error && result.error.includes("already has a murshid")) {
+                showAlert(`❌ This enrolment number has already submitted. ${result.error}`);
+                await lookupStudent(currentStudent.enrol); // Refresh to show submitted status
+            } else {
+                showAlert(`❌ Submission failed: ${result.error || "Unknown error"}`);
+            }
             // Refresh data to show updated slot status
             await loadAllStudents();
-            renderTeacherCards(currentStudent.mode);
+            renderTeacherCards(currentStudent.mode, false);
         }
         
     } catch (error) {
         console.error("Submit error:", error);
         showAlert("Network error: Could not update. Please try again later.");
     } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalBtnHtml;
-        if (currentStudent?.murshid) {
-            submitBtn.disabled = true;
-            submitBtn.style.opacity = "0.6";
+        if (!isAlreadySubmitted) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnHtml;
         }
     }
 }
@@ -399,7 +477,7 @@ function showAlert(message, isError = true) {
     alertPopup.classList.add('show');
     setTimeout(() => {
         alertPopup.classList.remove('show');
-    }, 3000);
+    }, 3500);
 }
 
 // ============================================
@@ -420,4 +498,4 @@ document.addEventListener("keydown", function(e) {
     }
 });
 
-console.log('%c🌙 Tharbiyya - Teacher Selection Portal Loaded 🌙', 'color: #059669; font-size: 16px; font-weight: bold;');
+console.log('%c🌙 Tharbiyya - Teacher Selection Portal (With Submission Tracking) Loaded 🌙', 'color: #059669; font-size: 16px; font-weight: bold;');

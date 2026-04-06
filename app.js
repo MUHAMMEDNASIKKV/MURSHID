@@ -5,7 +5,7 @@
 
 // Configuration
 // IMPORTANT: Replace with your actual Google Apps Script Web App URL
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz60SiLhiF9aNledxt7RUCwlu_HX5Ae5lWmaWEb2ZP20QGhnHDYtR0zSDtVM2T1nehb/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbys2y7eMx0NKk2hGfw1-wf5A3J5Vg0c_10UMR0EmjE-Ec-kJWkkjK1ErrsXPMFXiW8J/exec";
 
 // Slot limits
 const SLOT_RULES = {
